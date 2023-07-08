@@ -1,17 +1,37 @@
 const express = require("express");
 const cors = require("cors");
+const http = require("http");
+const socketIO = require("socket.io");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post("/vote", (req, res) => {
-  const { optionId } = req.body;
-  // 投票データを保存する処理を追加する
-  console.log("投票されました。選択肢ID: " + optionId);
-  res.sendStatus(200);
+const server = http.createServer(app);
+const io = socketIO(server, {
+  cors: {
+    origin: "http://localhost:8080",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"]
+  }
 });
 
-app.listen(3000, () => {
+let voteCounts = {};
+
+io.on("connection", (socket) => {
+  socket.emit("voteCounts", voteCounts);
+
+  socket.on("vote", (optionId) => {
+    if (voteCounts[optionId]) {
+      voteCounts[optionId]++;
+    } else {
+      voteCounts[optionId] = 1;
+    }
+
+    io.emit("voteCounts", voteCounts);
+  });
+});
+
+server.listen(3000, () => {
   console.log("サーバーがポート3000で起動しました。");
 });
